@@ -13,6 +13,10 @@ type SceneConfig struct {
 }
 
 var SceneRegistry = map[string]SceneConfig{
+	"CONTENT_POST_GENERIC": {
+		Scene:  scenes.ContentPost,
+		Format: formats.Generic,
+	},
 	"CONTENT_POST_XHS": {
 		Scene:  scenes.ContentPost,
 		Format: formats.XHS,
@@ -28,6 +32,9 @@ var SceneRegistry = map[string]SceneConfig{
 }
 
 func GetScene(code string) (SceneConfig, error) {
+	if code == "" {
+		code = "CONTENT_POST_GENERIC"
+	}
 	cfg, ok := SceneRegistry[code]
 	if !ok {
 		return SceneConfig{}, errors.New("unknown scene_code")
