@@ -18,26 +18,38 @@ func (s *Server) HandleGenerate(w http.ResponseWriter, r *http.Request) {
 		SceneCode string            `json:"scene_code"`
 		Params    map[string]string `json:"params"`
 	}
-	_ = json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
 
-	p := prompt.ContentPostV1
-
-	user, err := p.Render(req.Params)
+	sceneCfg, err := prompt.GetScene(req.SceneCode)
 	if err != nil {
-		http.Error(w, err.Error(), 400)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	p := prompt.Prompt{
+		System: prompt.BaseSystem,
+		Scene:  sceneCfg.Scene,
+		Format: sceneCfg.Format,
+	}
+
+	userText, err := p.Render(req.Params)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	result, err := s.Generator.Generate(
 		r.Context(),
 		provider.GenerateRequest{
-			System: p.System,
-			User:   user,
+			System: prompt.BaseSystem,
+			User:   userText,
 		},
 	)
-
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
