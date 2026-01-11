@@ -1,45 +1,39 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 
-	"github.com/joho/godotenv"
-
-	"structured-content-genkit-go/internal/flows"
-	"structured-content-genkit-go/internal/types"
+	"ai-product/internal/provider"
+	"ai-product/internal/service"
+	"ai-product/internal/transport"
 )
 
 func main() {
-	_ = godotenv.Load()
+	openai := &provider.OpenAIProvider{
+		APIKey: os.Getenv("OPENAI_API_KEY"),
+		Model:  "gpt-4o-mini",
+	}
 
-	http.HandleFunc("/generate", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
+	gemini := &provider.GeminiProvider{
+		APIKey: os.Getenv("GEMINI_API_KEY"),
+		Model:  "gemini-2.0-flash",
+	}
 
-		var req types.GenerateRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
+	genService := &service.GenerateService{
+		Providers: []provider.Provider{
+			openai,
+			gemini,
+		},
+	}
 
-		result, err := flows.GenerateStructuredContent(req)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(map[string]string{
-				"error": err.Error(),
-			})
-			return
-		}
+	server := &transport.Server{
+		Generator: genService,
+	}
 
-		_ = json.NewEncoder(w).Encode(map[string]string{
-			"result": result,
-			})
-	})
+	http.HandleFunc("/generate", server.HandleGenerate)
 
-	log.Println("Server running at http://localhost:8080")
+	log.Println("Server running at :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
